@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 .DS_Store
-download.sh
+
+*download.sh
+
 weights/
 .vscode
 llama.egg-info
