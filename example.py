@@ -20,9 +20,9 @@ def setup_model_parallel() -> Tuple[int, int]:
     local_rank = int(os.environ.get("LOCAL_RANK", -1))
     world_size = int(os.environ.get("WORLD_SIZE", -1))
 
-    torch.distributed.init_process_group("nccl")
+    torch.distributed.init_process_group("gloo")
     initialize_model_parallel(world_size)
-    torch.cuda.set_device(local_rank)
+    # torch.cuda.set_device(local_rank)
 
     # seed must be the same in all processes
     torch.manual_seed(1)
@@ -41,12 +41,13 @@ def load(ckpt_dir: str, tokenizer_path: str, local_rank: int, world_size: int) -
     with open(Path(ckpt_dir) / "params.json", "r") as f:
         params = json.loads(f.read())
 
-    model_args: ModelArgs = ModelArgs(max_seq_len=1024, max_batch_size=32, **params)
+    model_args: ModelArgs = ModelArgs(
+        max_seq_len=1024, max_batch_size=32, **params)
     tokenizer = Tokenizer(model_path=tokenizer_path)
     model_args.vocab_size = tokenizer.n_words
-    torch.set_default_tensor_type(torch.cuda.HalfTensor)
+    torch.set_default_tensor_type(torch.HalfTensor)
     model = Transformer(model_args)
-    torch.set_default_tensor_type(torch.FloatTensor)
+    torch.set_default_tensor_type(torch.HalfTensor)
     model.load_state_dict(checkpoint, strict=False)
 
     generator = LLaMA(model, tokenizer)
@@ -60,8 +61,13 @@ def main(ckpt_dir: str, tokenizer_path: str, temperature: float = 0.8, top_p: fl
         sys.stdout = open(os.devnull, 'w')
 
     generator = load(ckpt_dir, tokenizer_path, local_rank, world_size)
-    prompts = ["The capital of Germany is the city of", "Here is my sonnet in the style of Shakespeare about an artificial intelligence:"]
-    results = generator.generate(prompts, max_gen_len=256, temperature=temperature, top_p=top_p)
+    prompts = [input("Enter prompt: ")]
+
+    start_time = time.time()
+    results = generator.generate(
+        prompts, max_gen_len=256, temperature=temperature, top_p=top_p)
+    print(f"responded in {time.time() - start_time:.2f} seconds")
+    return generator
 
     for result in results:
         print(result)

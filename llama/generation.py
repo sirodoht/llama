@@ -25,14 +25,16 @@ class LLaMA:
         params = self.model.params
         assert bsz <= params.max_batch_size, (bsz, params.max_batch_size)
 
-        prompt_tokens = [self.tokenizer.encode(x, bos=True, eos=False) for x in prompts]
+        prompt_tokens = [self.tokenizer.encode(
+            x, bos=True, eos=False) for x in prompts]
 
         min_prompt_size = min([len(t) for t in prompt_tokens])
         max_prompt_size = max([len(t) for t in prompt_tokens])
 
         total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)
 
-        tokens = torch.full((bsz, total_len), self.tokenizer.pad_id).cuda().long()
+        tokens = torch.full(
+            (bsz, total_len), self.tokenizer.pad_id).long()
         for k, t in enumerate(prompt_tokens):
             tokens[k, : len(t)] = torch.tensor(t).long()
         input_text_mask = tokens != self.tokenizer.pad_id
