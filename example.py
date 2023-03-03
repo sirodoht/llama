@@ -81,8 +81,7 @@ def main(ckpt_dir: str, tokenizer_path: str, temperature: float = 0.8, top_p: fl
         sys.stdout = open(os.devnull, 'w')
 
     generator = load(ckpt_dir, tokenizer_path, local_rank, world_size)
-    # input("Enter prompt: ")]
-    prompts = ["Enter prompt: "]
+    prompts = [input("Enter prompt: ")]
     print("Starting generation with prompt:", prompts[0])
 
     while True:
