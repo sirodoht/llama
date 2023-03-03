@@ -13,6 +13,12 @@ Then in this repository
 pip install -e .
 ```
 
+If you are using MPS commit, use these to disable mps backend memory limit + fallback
+```
+export PYTORCH_ENABLE_MPS_FALLBACK=1
+export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+```
+
 ```
 torchrun --nproc_per_node 1 example.py --ckpt_dir $TARGET_FOLDER/model_size --tokenizer_path $TARGET_FOLDER/tokenizer.model
 ```
