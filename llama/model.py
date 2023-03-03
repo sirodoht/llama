@@ -74,41 +74,53 @@ def apply_rotary_emb(
     xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
     return xq_out.type_as(xq), xk_out.type_as(xk)
 
+    # # Split the real and imaginary parts of the query and key tensors
+    # xq_real, xq_imag = torch.chunk(xq, 2, dim=-1)
+    # xk_real, xk_imag = torch.chunk(xk, 2, dim=-1)
+
+    # # Apply the rotational embedding to each part separately
+    # freqs_cos = freqs_cis.cos()
+    # freqs_sin = freqs_cis.sin()
+
+    # xq_out_real = xq_real * freqs_cos - xq_imag * freqs_sin
+    # xq_out_imag = xq_real * freqs_sin + xq_imag * freqs_cos
+
+    # xk_out_real = xk_real * freqs_cos - xk_imag * freqs_sin
+    # xk_out_imag = xk_real * freqs_sin + xk_imag * freqs_cos
+
+    # # Combine the modified real and imaginary parts into complex tensors
+    # xq_out = torch.cat([xq_out_real, xq_out_imag], dim=-1)
+    # xk_out = torch.cat([xk_out_real, xk_out_imag], dim=-1)
+
+    return xq_out, xk_out
+
 
 class Attention(nn.Module):
     def __init__(self, args: ModelArgs):
         super().__init__()
 
-        self.n_local_heads = args.n_heads // fs_init.get_model_parallel_world_size()
+        self.n_local_heads = args.n_heads // 1
         self.head_dim = args.dim // args.n_heads
 
-        self.wq = ColumnParallelLinear(
+        self.wq = nn.Linear(
             args.dim,
             args.n_heads * self.head_dim,
             bias=False,
-            gather_output=False,
-            init_method=lambda x: x,
         )
-        self.wk = ColumnParallelLinear(
+        self.wk = nn.Linear(
             args.dim,
             args.n_heads * self.head_dim,
             bias=False,
-            gather_output=False,
-            init_method=lambda x: x,
         )
-        self.wv = ColumnParallelLinear(
+        self.wv = nn.Linear(
             args.dim,
             args.n_heads * self.head_dim,
             bias=False,
-            gather_output=False,
-            init_method=lambda x: x,
         )
-        self.wo = RowParallelLinear(
+        self.wo = nn.Linear(
             args.n_heads * self.head_dim,
             args.dim,
             bias=False,
-            input_is_parallel=True,
-            init_method=lambda x: x,
         )
 
         self.cache_k = torch.zeros(
@@ -128,7 +140,18 @@ class Attention(nn.Module):
         xk = xk.view(bsz, seqlen, self.n_local_heads, self.head_dim)
         xv = xv.view(bsz, seqlen, self.n_local_heads, self.head_dim)
 
+        # print("---- Converting to cpu to apply rotary embedding")
+        # xq = xq.to('cpu')
+        # xk = xk.to('cpu')
+        freqs_cis = freqs_cis.to('cpu')
+
+        print("---- Applying rotary embedding")
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
+
+        # print("---- Converting back to mps to continue computation")
+        # xq = xq.to('mps')
+        # xk = xk.to('mps')
+        # freqs_cis = freqs_cis.to("mps")
 
         self.cache_k = self.cache_k.to(xq)
         self.cache_v = self.cache_v.to(xq)
@@ -169,14 +192,14 @@ class FeedForward(nn.Module):
         hidden_dim = multiple_of * \
             ((hidden_dim + multiple_of - 1) // multiple_of)
 
-        self.w1 = ColumnParallelLinear(
-            dim, hidden_dim, bias=False, gather_output=False, init_method=lambda x: x
+        self.w1 = torch.nn.Linear(
+            dim, hidden_dim, bias=False,
         )
-        self.w2 = RowParallelLinear(
-            hidden_dim, dim, bias=False, input_is_parallel=True, init_method=lambda x: x
+        self.w2 = torch.nn.Linear(
+            hidden_dim, dim, bias=False,
         )
-        self.w3 = ColumnParallelLinear(
-            dim, hidden_dim, bias=False, gather_output=False, init_method=lambda x: x
+        self.w3 = torch.nn.Linear(
+            dim, hidden_dim, bias=False,
         )
 
     def forward(self, x):
@@ -212,19 +235,23 @@ class Transformer(nn.Module):
         self.vocab_size = params.vocab_size
         self.n_layers = params.n_layers
 
-        self.tok_embeddings = ParallelEmbedding(
-            params.vocab_size, params.dim, init_method=lambda x: x
+        print("-- Creating embedding")
+        self.tok_embeddings = torch.nn.Embedding(
+            params.vocab_size, params.dim
         )
 
         self.layers = torch.nn.ModuleList()
+        print(f"-- Creating transformer blocks ({params.n_layers})")
         for layer_id in range(params.n_layers):
             self.layers.append(TransformerBlock(layer_id, params))
 
+        print("-- Adding output layers ")
         self.norm = RMSNorm(params.dim, eps=params.norm_eps)
-        self.output = ColumnParallelLinear(
-            params.dim, params.vocab_size, bias=False, init_method=lambda x: x
+        self.output = nn.Linear(
+            params.dim, params.vocab_size, bias=False
         )
 
+        print("-- Precomputing frequencies")
         self.freqs_cis = precompute_freqs_cis(
             self.params.dim // self.params.n_heads, self.params.max_seq_len * 2
         )
@@ -243,6 +270,7 @@ class Transformer(nn.Module):
             mask = torch.triu(mask, diagonal=start_pos + 1).type_as(h)
 
         for layer in self.layers:
+            print(f"-- Computing layer {layer.layer_id}")
             h = layer(h, start_pos, freqs_cis, mask)
         h = self.norm(h)
         output = self.output(h[:, -1, :])  # only compute last logits

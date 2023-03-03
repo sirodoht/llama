@@ -12,6 +12,7 @@ from llama.model import Transformer
 class LLaMA:
     def __init__(self, model: Transformer, tokenizer: Tokenizer):
         self.model = model
+        # self.model.to(torch.device("mps"))
         self.tokenizer = tokenizer
 
     def generate(
@@ -32,21 +33,26 @@ class LLaMA:
         max_prompt_size = max([len(t) for t in prompt_tokens])
 
         total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)
+        print(f"Forwarding {total_len} times")
 
         tokens = torch.full(
-            (bsz, total_len), self.tokenizer.pad_id).long()
+            (bsz, total_len), self.tokenizer.pad_id, device=torch.device("cpu")).long()
         for k, t in enumerate(prompt_tokens):
             tokens[k, : len(t)] = torch.tensor(t).long()
+
         input_text_mask = tokens != self.tokenizer.pad_id
         start_pos = min_prompt_size
         prev_pos = 0
         for cur_pos in range(start_pos, total_len):
+            print(f"Feeding tensors forward #{cur_pos}")
             logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
                 next_token = sample_top_p(probs, top_p)
             else:
                 next_token = torch.argmax(logits, dim=-1)
+
             next_token = next_token.reshape(-1)
             # only replace token if prompt has already been generated
             next_token = torch.where(
