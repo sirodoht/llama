@@ -145,7 +145,7 @@ class Attention(nn.Module):
         # xk = xk.to('cpu')
         freqs_cis = freqs_cis.to('cpu')
 
-        print("---- Applying rotary embedding")
+        #print("---- Applying rotary embedding")
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
         # print("---- Converting back to mps to continue computation")
@@ -270,7 +270,7 @@ class Transformer(nn.Module):
             mask = torch.triu(mask, diagonal=start_pos + 1).type_as(h)
 
         for layer in self.layers:
-            print(f"-- Computing layer {layer.layer_id}")
+            #print(f"-- Computing layer {layer.layer_id}")
             h = layer(h, start_pos, freqs_cis, mask)
         h = self.norm(h)
         output = self.output(h[:, -1, :])  # only compute last logits
