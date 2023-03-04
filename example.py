@@ -57,12 +57,12 @@ def load(ckpt_dir: str, tokenizer_path: str, local_rank: int, world_size: int) -
     model_args.vocab_size = tokenizer.n_words
 
     print("Creating transformer...")
-    torch.set_default_tensor_type(torch.FloatTensor)
+    torch.set_default_tensor_type(torch.BFloat16Tensor)
     model = Transformer(model_args)
 
     print("Loading checkpoint to model...", end="")
     _start_time = time.time()
-    torch.set_default_tensor_type(torch.FloatTensor)
+    torch.set_default_tensor_type(torch.BFloat16Tensor)
     model.load_state_dict(checkpoint, strict=False)
     print(f"done in {time.time() - _start_time:.2f} seconds")
 
