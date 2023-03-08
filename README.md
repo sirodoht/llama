@@ -1,7 +1,3 @@
-```
-Tested on Macbook Pro M1 Max -- pytorch nightly
-```
-
 # LLaMA 
 
 This repository is intended as a minimal, hackable and readable example to load [LLaMA](https://ai.facebook.com/blog/large-language-model-llama-meta-ai/) ([arXiv](https://arxiv.org/abs/2302.13971v1)) models and run inference.
@@ -19,6 +15,8 @@ pip install -e .
 ```
 
 ## Apple M1
+
+> Tested on Macbook Pro M1 Max -- pytorch nightly
 
 If you are using MPS commit, use these to disable mps backend memory limit + fallback
 ```
