@@ -23,10 +23,17 @@ pip install -e .
 
 > Tested on Macbook Pro M1 Max -- pytorch nightly
 
-If you are using MPS commit, use these to disable mps backend memory limit + fallback
+If you are using MPS commit, use these to disable mps backend memory limit + fallback:
+
 ```
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+```
+
+Example:
+
+```
+torchrun --nproc_per_node 1 example.py ./model/7B ./model/tokenizer.model
 ```
 
 ## Download
@@ -71,7 +78,9 @@ LLaMA: Open and Efficient Foundation Language Models -- https://arxiv.org/abs/23
 ```
 
 ## Model Card
+
 See [MODEL_CARD.md](MODEL_CARD.md)
 
 ## License
+
 See the [LICENSE](LICENSE) file.
