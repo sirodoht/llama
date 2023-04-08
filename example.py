@@ -49,7 +49,7 @@ def load(
     ckpt_path = checkpoints[local_rank]
 
     print("Creating checkpoint instance...")
-    checkpoint = torch.load(ckpt_path, map_location="cpu")
+    checkpoint = torch.load(ckpt_path, map_location="mps")
 
     print("Grabbing params...")
     with open(Path(ckpt_dir) / "params.json", "r") as f:
@@ -68,12 +68,12 @@ def load(
     model_args.vocab_size = tokenizer.n_words
 
     print("Creating transformer...")
-    torch.set_default_tensor_type(torch.BFloat16Tensor)
+    torch.set_default_tensor_type(torch.FloatTensor)
     model = Transformer(model_args)
 
     print("Loading checkpoint to model...", end="")
     _start_time = time.time()
-    torch.set_default_tensor_type(torch.BFloat16Tensor)
+    torch.set_default_tensor_type(torch.FloatTensor)
     model.load_state_dict(checkpoint, strict=False)
     print(f"done in {time.time() - _start_time:.2f} seconds")
 
@@ -102,9 +102,8 @@ def main(
         ckpt_dir, tokenizer_path, local_rank, world_size, max_seq_len, max_batch_size
     )
 
-    prompts = [input("Enter prompt: ")]
-    print("Starting generation with prompt:", prompts[0])
-
+    # prompts = [input("Enter prompt: ")]
+    # print("Starting generation with prompt:", prompts[0])
     # while True:
     #     start_time = time.time()
     #     results = generator.generate(

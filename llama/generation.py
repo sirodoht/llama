@@ -12,7 +12,7 @@ from llama.model import Transformer
 class LLaMA:
     def __init__(self, model: Transformer, tokenizer: Tokenizer):
         self.model = model
-        # self.model.to(torch.device("mps"))
+        self.model.to(torch.device("mps"))
         self.tokenizer = tokenizer
 
     def generate(
@@ -36,7 +36,8 @@ class LLaMA:
         print(f"Forwarding {total_len} times")
 
         tokens = torch.full(
-            (bsz, total_len), self.tokenizer.pad_id, device=torch.device("cpu")).long()
+            (bsz, total_len), self.tokenizer.pad_id, device=torch.device("mps")
+        ).long()
         for k, t in enumerate(prompt_tokens):
             tokens[k, : len(t)] = torch.tensor(t).long()
 
@@ -44,7 +45,7 @@ class LLaMA:
         start_pos = min_prompt_size
         prev_pos = 0
         for cur_pos in range(start_pos, total_len):
-            # print(f"Feeding tensors forward #{cur_pos}")
+            print(f"Feeding tensors forward #{cur_pos}")
             logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
 
             if temperature > 0:
